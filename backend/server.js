@@ -1,0 +1,14 @@
+const express = require('express');
+const connectDB = require('./config/db');
+const cors = require('cors');
+const app = express();
+connectDB();
+app.use(cors());
+app.use(express.json());
+app.use('/api/courts', require('./routes/courtRoutes'));
+app.use('/api/coaches', require('./routes/coachRoutes'));
+app.use('/api/equipment', require('./routes/equipmentRoutes'));
+app.use('/api/pricing', require('./routes/pricingRoutes'));
+app.use('/api/bookings', require('./routes/bookingRoutes'));
+const port = process.env.PORT || 4000;
+app.listen(port, () => console.log('Server running on port', port));

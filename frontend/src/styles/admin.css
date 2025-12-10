@@ -1,0 +1,49 @@
+/* Admin dashboard styles (simple modern look) */
+body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+.adm-notice { background:#e6ffed; border:1px solid #b7f0c6; padding:8px 12px; margin-bottom:12px; color:#065f2d; border-radius:6px; }
+.adm-resource { display:flex; gap:18px; align-items:flex-start; margin-bottom:18px; border:1px solid #eee; padding:18px; border-radius:8px; background:#fff; box-shadow:0 1px 4px rgba(22,22,22,0.03); }
+.adm-left { flex:1; min-width:220px; }
+.adm-right { width:380px; max-width:40%; }
+.adm-list { margin-top:8px; }
+.adm-item { display:flex; justify-content:space-between; align-items:center; padding:10px 6px; border-bottom:1px solid #f2f2f2; }
+.adm-item-title { font-weight:600; color:#222; }
+.adm-item-actions button { margin-left:8px; }
+.adm-field { margin-bottom:10px; }
+.adm-label { display:block; font-weight:600; margin-bottom:6px; }
+.adm-hint { color:#666; font-size:12px; margin-top:4px; }
+.adm-error { color:#b00020; font-size:13px; margin-top:6px; }
+.adm-muted { color:#888; font-style:italic; padding:8px 0; }
+
+.inp { width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; box-sizing:border-box; }
+.btn { padding:8px 12px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+.btn:hover { box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+.btn-primary { background:#0b74ff; color:white; border:1px solid #0b74ff; }
+.btn-danger { background:#fff6f6; color:#b00020; border:1px solid #f1c7c7; }
+
+.btn-ghost { background:transparent; border:1px solid #eee; }
+
+.toggle { display:inline-block; position:relative; }
+.toggle input { display:none; }
+.toggle-slider { display:inline-block; width:40px; height:22px; background:#ddd; border-radius:22px; position:relative; vertical-align:middle; margin-left:8px; transition:all .18s; }
+.toggle-slider:after{ content:''; position:absolute; left:3px; top:3px; width:16px; height:16px; background:#fff; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,0.1); transition:all .18s; }
+.toggle input:checked + .toggle-slider { background:#0b74ff; }
+.toggle input:checked + .toggle-slider:after { transform: translateX(18px); }
+
+@media (max-width: 900px) {
+  .adm-resource { flex-direction:column; }
+  .adm-right { width:100%; max-width:100%; }
+}
+html, body {
+  overflow-x: hidden !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+.adm-resource {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.card {
+  max-width: 100%;
+}
