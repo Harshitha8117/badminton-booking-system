@@ -1,28 +1,24 @@
 @echo off
-title Badminton Booking System - Auto Runner
+REM run_project.bat — builds frontend then starts backend (Windows)
 
-echo ============================================
-echo   Starting Badminton Booking System
-echo ============================================
-echo.
+REM 1) build frontend
+echo Building frontend...
+cd frontend
+npm install
+npm run build
+IF %ERRORLEVEL% NEQ 0 (
+  echo Frontend build failed.
+  pause
+  exit /b %ERRORLEVEL%
+)
+cd ..
 
-REM ---- START BACKEND ----
-echo Starting backend server...
-start cmd /k "cd backend && npm install && npm start"
-timeout /t 5 >nul
-
-REM ---- START FRONTEND ----
-echo Starting frontend UI...
-start cmd /k "cd frontend && npm install && npm run dev"
-timeout /t 4 >nul
-
-REM ---- OPEN BROWSER ----
-echo Opening browser at http://localhost:5173
-start "" http://localhost:5173
-
-echo.
-echo ============================================
-echo   All services started successfully!
-echo   Leave this window open while running.
-echo ============================================
+REM 2) start backend
+echo Starting backend...
+cd backend
+npm install
+REM Use nodemon in dev or node for production
+start cmd /k "npm start"
+cd ..
+echo Done. Backend started in new window.
 pause
