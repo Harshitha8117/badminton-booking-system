@@ -1,0 +1,7 @@
+{
+  "name": "full_badminton_project_final",
+  "version": "1.0.0",
+  "scripts": {
+    "start-all": "concurrently \"cd backend && npm start\" \"cd frontend && npm run dev\""
+  }
+}

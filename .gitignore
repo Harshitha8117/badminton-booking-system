@@ -1,3 +1,5 @@
+# create .gitignore if missing
+@"
 # Node modules
 backend/node_modules/
 frontend/node_modules/
@@ -12,7 +14,10 @@ backend/dist/
 
 # Env files
 *.env
+backend/.env
+frontend/.env
 
 # System files
 .DS_Store
 Thumbs.db
+"@ > .gitignore
