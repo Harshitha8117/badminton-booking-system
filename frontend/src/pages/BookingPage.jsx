@@ -1,226 +1,152 @@
 // frontend/src/pages/BookingPage.jsx
-import React, { useEffect, useState } from 'react';
-import { api } from '../services/api';
-import '../styles/app.css';
-import { jsPDF } from 'jspdf';
+import React, { useEffect, useState } from "react";
+import { fetchCourts, fetchCoaches, createBooking } from "../api";
 
-function createPdfReceipt(booking) {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const margin = 40;
-  let y = margin;
-
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Badminton Booking Receipt', margin, y);
-  y += 26;
-
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Receipt ID: ${booking._id || Date.now()}`, margin, y);
-  y += 16;
-  doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
-  y += 20;
-
-  doc.setDrawColor(220);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, 560, y);
-  y += 16;
-
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Booking Details', margin, y);
-  y += 16;
-  doc.setFont('helvetica', 'normal');
-
-  const start = booking.startTime ? new Date(booking.startTime) : null;
-  const end = booking.endTime ? new Date(booking.endTime) : null;
-
-  doc.text(`Name: ${booking.userName || 'Guest'}`, margin, y); y += 14;
-  doc.text(`Court: ${booking.courtId?.name || '—'}`, margin, y); y += 14;
-  doc.text(`Time: ${start ? start.toLocaleString() : '—'} — ${end ? end.toLocaleString() : '—'}`, margin, y); y += 14;
-  doc.text(`Coach: ${booking.coachId?.name || 'None'}`, margin, y); y += 14;
-
-  const rackets = booking.equipment?.rackets ?? 0;
-  const shoes = booking.equipment?.shoes ?? 0;
-  doc.text(`Rackets: ${rackets}`, margin, y); y += 14;
-  doc.text(`Shoes: ${shoes}`, margin, y); y += 18;
-
-  doc.setFont('helvetica', 'bold');
-  doc.text('Price', margin, y);
-  y += 16;
-  doc.setFont('helvetica', 'normal');
-
-  const base = booking.pricingBreakdown?.basePrice ?? 0;
-  const total = booking.pricingBreakdown?.total ?? 0;
-
-  doc.text(`Base: $${Number(base).toFixed(2)}`, margin, y); y += 14;
-  doc.text(`Rackets (${rackets} × $5): $${(rackets * 5).toFixed(2)}`, margin, y); y += 14;
-  doc.text(`Shoes (${shoes} × $3): $${(shoes * 3).toFixed(2)}`, margin, y); y += 14;
-  if (booking.coachId?.hourlyRate) {
-    doc.text(`Coach: $${Number(booking.coachId.hourlyRate).toFixed(2)}`, margin, y);
-    y += 14;
-  }
-  doc.text(`Total: $${Number(total).toFixed(2)}`, margin, y); y += 20;
-
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text('Thank you for booking. Please bring this receipt on arrival.', margin, y);
-
-  const fileName = `booking-receipt-${booking._id || Date.now()}.pdf`;
-  doc.save(fileName);
-}
+const SLOTS = ["09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00"];
 
 export default function BookingPage() {
   const [courts, setCourts] = useState([]);
-  const [selectedCourt, setSelectedCourt] = useState('');
-  const [date, setDate] = useState('');
-  const [slots, setSlots] = useState([]);
-  const [selectedSlot, setSelectedSlot] = useState('');
-  const [equipment, setEquipment] = useState({ rackets: 0, shoes: 0 });
   const [coaches, setCoaches] = useState([]);
-  const [selectedCoach, setSelectedCoach] = useState('');
-  const [pricing, setPricing] = useState(null);
-  const [name, setName] = useState('');
-  const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [form, setForm] = useState({
+    name: "",
+    courtId: "",
+    date: "",
+    slot: "",
+    coachId: "",
+    rackets: 0,
+    shoes: 0,
+  });
 
   useEffect(() => {
-    api.get('/courts').then(r => setCourts(r.data || [])).catch(() => setCourts([]));
-    api.get('/coaches').then(r => setCoaches(r.data || [])).catch(() => setCoaches([]));
-    const s = [];
-    for (let h = 9; h < 21; h++) s.push(h + ':00');
-    setSlots(s);
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      try {
+        const [c, ch] = await Promise.all([fetchCourts(), fetchCoaches()]);
+        if (!mounted) return;
+        setCourts(c || []);
+        setCoaches(ch || []);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || "Failed to load options");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => (mounted = false);
   }, []);
 
-  useEffect(() => {
-    const fetchPrice = async () => {
-      if (!selectedCourt || !date || !selectedSlot) return setPricing(null);
-      try {
-        const court = courts.find(c => c._id === selectedCourt);
-        const res = await api.get('/pricing');
-        const rules = res.data || [];
-        let price = (court?.basePrice) || 0;
-        const dt = new Date(date + ' ' + selectedSlot);
-        const hour = dt.getHours();
-        const day = dt.getDay();
-        rules.forEach(rule => {
-          if (!rule.enabled) return;
-          if (rule.type === 'weekend' && (day === 0 || day === 6)) price += rule.surcharge || 0;
-          if (rule.type === 'peak' && rule.startHour != null && rule.endHour != null && hour >= rule.startHour && hour < rule.endHour) price = price * (rule.multiplier || 1);
-          if (rule.type === 'indoorPremium' && court?.type === 'indoor') price += rule.surcharge || 0;
-        });
-        price += (equipment.rackets || 0) * 5 + (equipment.shoes || 0) * 3;
-        if (selectedCoach) { const c = coaches.find(x => x._id === selectedCoach); price += c?.hourlyRate || 0; }
-        setPricing({ basePrice: court?.basePrice || 0, total: Math.round(price * 100) / 100 });
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchPrice();
-  }, [selectedCourt, date, selectedSlot, equipment, selectedCoach, courts, coaches]);
+  function setField(key, value) {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setError(null);
+  }
 
-  const book = async () => {
-    setNotice('');
-    if (!selectedCourt || !date || !selectedSlot) { setNotice('Select court, date and slot'); return; }
-    const start = new Date(date + ' ' + selectedSlot);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-    try {
-      const res = await api.post('/bookings', {
-        userName: name || 'Guest',
-        courtId: selectedCourt,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        equipment,
-        coachId: selectedCoach || null
-      });
+  async function submit(e) {
+    e.preventDefault();
+    setError(null);
 
-      // backend now returns populated booking at res.data.booking
-      const booking = res?.data?.booking;
-      if (!booking) {
-        setNotice('Booked successfully, but server returned no booking data.');
-      } else {
-        setNotice('Booked! Total: ' + (booking.pricingBreakdown?.total ?? '0'));
-
-        // download receipt (uses populated fields: booking.courtId, booking.coachId)
-        try { createPdfReceipt(booking); } catch (pdfErr) { console.error('PDF error', pdfErr); }
-      }
-
-      // clear selections
-      setSelectedSlot('');
-      setEquipment({ rackets: 0, shoes: 0 });
-      setSelectedCoach('');
-    } catch (err) {
-      setNotice('Booking failed: ' + (err.response?.data?.error || err.message));
+    // Minimal client validation
+    if (!form.name || !form.courtId || !form.date || !form.slot) {
+      setError("Please fill name, court, date and slot.");
+      return;
     }
-  };
+
+    // Create payload per your backend schema
+    const payload = {
+      name: form.name,
+      courtId: form.courtId,
+      coachId: form.coachId || null,
+      date: form.date,
+      slot: form.slot,
+      equipment: {
+        rackets: Number(form.rackets) || 0,
+        shoes: Number(form.shoes) || 0,
+      },
+    };
+
+    try {
+      const created = await createBooking(payload);
+      // success UX: clear slot or navigate
+      alert("Booking created: " + (created._id || "OK"));
+      // reset slot selection
+      setForm(prev => ({ ...prev, slot: "" }));
+    } catch (err) {
+      console.error(err);
+      // Show meaningful message, backend may return 409 or 400
+      setError(err.data?.error || err.message || "Booking failed");
+    }
+  }
+
+  if (loading) return <div>Loading available courts & coaches…</div>;
 
   return (
-    <div className="page-container">
-      <h1 className="page-title">Booking</h1>
-      <div className="booking-layout">
-        <div className="card">
-          <div className="field"><label>Name</label><input value={name} onChange={e => setName(e.target.value)} /></div>
+    <div className="container mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-4">Create Booking</h2>
 
-          <div className="field">
-            <label>Choose court</label>
-            <select value={selectedCourt} onChange={e => setSelectedCourt(e.target.value)} className="inp">
-              <option value="">--select--</option>
-              {courts.map(c => <option key={c._id} value={c._id}>{c.name} ({c.type}) - ${c.basePrice}</option>)}
-            </select>
-          </div>
+      {error && <div className="bg-red-100 text-red-800 p-2 mb-4 rounded">{error}</div>}
 
-          <div className="field"><label>Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="block font-semibold">Name</label>
+          <input value={form.name} onChange={e=>setField("name", e.target.value)} className="w-full p-2 border rounded"/>
+        </div>
 
-          <div style={{ marginTop: 8 }}>
-            <label style={{ fontWeight: 700 }}>Slots</label>
-            <div className="slot-grid" style={{ marginTop: 8 }}>
-              {slots.map(s => (
-                <div key={s} className={'slot' + (selectedSlot === s ? ' selected' : '')} onClick={() => setSelectedSlot(s)}>{s}</div>
-              ))}
-            </div>
-            <div className="hint" style={{ marginTop: 8 }}>Selected: <strong>{selectedSlot || '—'}</strong></div>
-          </div>
+        <div>
+          <label className="block font-semibold">Choose court</label>
+          <select value={form.courtId} onChange={e=>setField("courtId", e.target.value)} className="w-full p-2 border rounded">
+            <option value="">--select--</option>
+            {courts.map(c => <option key={c._id} value={c._id}>{c.name} ({c.type}) - ${c.basePrice}</option>)}
+          </select>
+        </div>
 
-          <div style={{ marginTop: 12 }}>
-            <label style={{ fontWeight: 700 }}>Coach</label>
-            <select value={selectedCoach} onChange={e => setSelectedCoach(e.target.value)} className="inp">
-              <option value="">--none--</option>
-              {coaches.map(c => <option key={c._id} value={c._id}>{c.name} - ${c.hourlyRate}/hr</option>)}
-            </select>
-          </div>
+        <div>
+          <label className="block font-semibold">Date</label>
+          <input type="date" value={form.date} onChange={e=>setField("date", e.target.value)} className="p-2 border rounded"/>
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
-            <div>
-              <label>Rackets</label>
-              <input type="number" min="0" value={equipment.rackets} onChange={e => setEquipment({ ...equipment, rackets: Number(e.target.value) })} />
-            </div>
-            <div>
-              <label>Shoes</label>
-              <input type="number" min="0" value={equipment.shoes} onChange={e => setEquipment({ ...equipment, shoes: Number(e.target.value) })} />
-            </div>
-          </div>
-
-          <div className="price-box">
-            <h3>Price</h3>
-            <div className="price-row"><div>Base:</div><div>${(pricing?.basePrice || 0).toFixed(2)}</div></div>
-            <div className="price-row" style={{ marginTop: 6 }}><div>Total:</div><div className="price-total">${(pricing?.total || 0).toFixed(2)}</div></div>
-          </div>
-
-          <div style={{ marginTop: 14 }}>
-            <button className="btn" onClick={book}>Confirm Booking</button>
-            {notice && <div style={{ marginTop: 10 }} className="hint">{notice}</div>}
+        <div>
+          <label className="block font-semibold">Slots</label>
+          <div className="grid grid-cols-3 gap-2">
+            {SLOTS.map(s => (
+              <button
+                type="button"
+                key={s}
+                onClick={() => setField("slot", s)}
+                className={`p-3 border rounded ${form.slot===s ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+              >
+                {s}
+              </button>
+            ))}
           </div>
         </div>
 
-        <aside className="side-card">
-          <div className="card">
-            <div className="section-title">Quick info</div>
-            <div className="hint">Pick a date & slot. Price updates live based on your selections and admin rules.</div>
-            <div style={{ height: 12 }} />
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>Price preview</div>
-            <div style={{ fontSize: 13, color: '#374151' }}>Base and total shown live. Add equipment or coach to include fees.</div>
+        <div>
+          <label className="block font-semibold">Coach</label>
+          <select value={form.coachId} onChange={e=>setField("coachId", e.target.value)} className="w-full p-2 border rounded">
+            <option value="">--none--</option>
+            {coaches.map(c => <option key={c._id} value={c._id}>{c.name} — ${c.hourlyRate}/hr</option>)}
+          </select>
+        </div>
+
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block font-semibold">Rackets</label>
+            <input type="number" min="0" value={form.rackets} onChange={e=>setField("rackets", e.target.value)} className="w-full p-2 border rounded"/>
           </div>
-        </aside>
-      </div>
+          <div className="flex-1">
+            <label className="block font-semibold">Shoes</label>
+            <input type="number" min="0" value={form.shoes} onChange={e=>setField("shoes", e.target.value)} className="w-full p-2 border rounded"/>
+          </div>
+        </div>
+
+        <div>
+          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Book</button>
+        </div>
+      </form>
     </div>
   );
 }
