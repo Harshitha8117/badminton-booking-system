@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://badminton-booking-system-6.onrender.com/api/:path*"
+    }
+  ]
+}
