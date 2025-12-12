@@ -1,28 +1,16 @@
 // src/api.js
 
-// Use Vercel or .env variable — fallback to /api for local
-const API = import.meta.env.VITE_API_URL || "/api";
+const API = import.meta.env.VITE_API_URL;  
+// Do NOT fallback to "/api" on Vercel – that causes 404
 
 export async function fetchCourts() {
   const res = await fetch(`${API}/courts`);
-  if (!res.ok) throw new Error("Failed to fetch courts");
+  if (!res.ok) throw new Error("API Error: " + res.status);
   return res.json();
 }
 
 export async function fetchCoaches() {
   const res = await fetch(`${API}/coaches`);
-  if (!res.ok) throw new Error("Failed to fetch coaches");
-  return res.json();
-}
-
-export async function fetchEquipment() {
-  const res = await fetch(`${API}/equipment`);
-  if (!res.ok) throw new Error("Failed to fetch equipment");
-  return res.json();
-}
-
-export async function fetchPricingRules() {
-  const res = await fetch(`${API}/pricing`);
-  if (!res.ok) throw new Error("Failed to fetch pricing rules");
+  if (!res.ok) throw new Error("API Error: " + res.status);
   return res.json();
 }
