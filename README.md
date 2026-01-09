@@ -11,7 +11,7 @@ The **Badminton Court Booking System** is a complete resource-booking platform t
 The system includes:
 
 * User booking interface
-* Admin dashboard for all configurations
+* Admin dashboards for all configurations
 * Pricing engine supporting peak hours, indoor premiums, weekend surcharges
 * Atomic concurrency protection (Lock-based algorithm)
 * PDF receipt generation
