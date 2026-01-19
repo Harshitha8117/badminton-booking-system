@@ -1,4 +1,4 @@
-# 🏸 **Badminton Court Booking System**
+# 🏸 **Badmiton Court Booking System**
 
 *A full-stack MERN application featuring atomic booking, admin configuration, dynamic pricing, and automatic PDF receipts.*
 
